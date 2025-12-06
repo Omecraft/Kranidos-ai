@@ -30,3 +30,11 @@ class Cible:
             return True
         else:
             return False
+
+    def is_close(self,x,y):
+        #If the ball is close to the target (less than 50 pixels)
+        distance_squared = (x - self.x)**2 + (y - self.y)**2
+        if distance_squared <= 50**2:
+            return True
+        else:
+            return False

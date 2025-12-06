@@ -1,5 +1,5 @@
 import pygame
-
+import pymunk
 
 #Personnage du jeux, permettant de tordre le plateau
 class Kranidos:
@@ -14,15 +14,21 @@ class Kranidos:
         self.image = pygame.transform.scale(self.image,(self.size,self.size))
         
 
+
+    
+
+
     def draw(self):
         self.surface.blit(self.image,(self.x,self.y))
 
     def handle_event(self,events):
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
-            self.x -= 10
+            if self.x>10:
+                self.x -= 10
         if keys[pygame.K_RIGHT]:
-            self.x += 10
+            if self.x<self.surface.get_width()-10-self.size:
+                self.x += 10
 
         for event in events:
             if event.type == pygame.KEYDOWN:
