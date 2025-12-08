@@ -5,22 +5,25 @@ from kranidos import Kranidos
 from boule import Boule
 from cible import Cible
 import numpy as np
+import random  # <--- AJOUTÉ : Indispensable pour la gestion des zones
 
 class Game:
-    def __init__(self, espace, visual_mode=False):
+    # On ajoute 'scenario' pour pouvoir forcer des tests spécifiques plus tard si besoin
+    def __init__(self, espace, visual_mode=False, scenario="random"):
         self.visual_mode = visual_mode
+        self.scenario = scenario
         self.w = 800
         self.h = 600
         
-        # --- MODIFICATION 1 : GESTION DE L'AFFICHAGE ---
+        # --- ANTI-SPAM ---
+        self.cooldown = 0  # Compteur de rechargement pour l'action "Tordre"
+
+        # --- GESTION DE L'AFFICHAGE ---
         if self.visual_mode:
             pygame.init()
             self.window = pygame.display.set_mode((self.w, self.h))
             self.clock = pygame.time.Clock()
         else:
-            # Mode "Fantôme" : On crée une surface en mémoire pour ne pas
-            # faire planter les classes Boule/Plateau qui ont besoin d'une "window"
-            # mais on n'ouvre pas de vraie fenêtre Windows.
             self.window = pygame.Surface((self.w, self.h))
             self.clock = None 
 
@@ -30,7 +33,12 @@ class Game:
         self.kranidos = Kranidos(self.window, self.plateau, self.boule)
         self.create_walls(espace)
         self.cible = Cible(self.window, self.plateau)
-        self.tick_to_reward = 1200 # Durée de vie max (20 secondes à 60fps)
+        
+        # --- INITIALISATION INTELLIGENTE DE LA CIBLE ---
+        # On ne laisse pas le hasard faire n'importe quoi au début
+        self.spawn_cible_strategic()
+
+        self.tick_to_reward = 1200 
         self.fitness = 0
 
     def create_walls(self, espace):
@@ -49,45 +57,61 @@ class Game:
             wall[1].friction = 1
             espace.add(wall[0], wall[1])
 
-    # --- MODIFICATION 2 : LE CŒUR DU JEU ---
+    # --- NOUVELLE MÉTHODE : GESTION DES ZONES ---
+    def spawn_cible_strategic(self):
+        """
+        Place la cible soit tout à gauche, soit tout à droite.
+        JAMAIS au milieu pour éviter les tirs chanceux.
+        """
+        w = self.w
+        
+        # Si on a défini un scénario strict (via le main.py)
+        if self.scenario == "force_gauche":
+            self.cible.x = random.randint(20, int(w * 0.30))
+        elif self.scenario == "force_droite":
+            self.cible.x = random.randint(int(w * 0.70), w - 20)
+        else:
+            # Mode Random "Hardcore" : 50% Gauche / 50% Droite
+            if random.random() < 0.5:
+                # Zone Gauche (0 à 30%)
+                self.cible.x = random.randint(20, int(w * 0.30))
+            else:
+                # Zone Droite (70% à 100%)
+                self.cible.x = random.randint(int(w * 0.70), w - 20)
+        
+        # Hauteur et taille aléatoires
+        self.cible.y = random.randint(50, self.plateau.y - 50)
+        self.cible.size = random.randint(20, 50)
+
     def step(self, action):
-        # 1. Gestion des événements (Seulement si on regarde)
         if self.visual_mode:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     self.running = False
-                # Important : passer les events à Kranidos seulement si visuel
-                # sinon l'IA contrôle tout
-                # self.kranidos.update(events) <--- A désactiver pour l'IA pure ?
-                # Si kranidos.update sert juste à l'animation, c'est ok.
         
-        # 2. Nettoyage écran (virtuel ou réel)
         self.window.fill((0, 0, 0))
         
-        # 3. Action de l'IA
         self.output(action)
         
-        # 4. Mises à jour physiques
         self.plateau.update()
         self.boule.update()
-        self.cible.draw() # Dessine sur la surface (virtuelle ou réelle)
+        self.cible.draw() 
         
-        # 5. Calcul des points
         self.has_fitness()
         
-        # 6. Affichage RÉEL (Seulement si mode visuel activé)
         if self.visual_mode:
-            self.kranidos.update(pygame.event.get()) # Juste pour l'affichage
+            self.kranidos.update(pygame.event.get()) 
             pygame.display.update()
-            # self.clock.tick(60) # Optionnel : limiter les FPS ou laisser à fond
 
-        # 7. Gestion du temps (Timer)
         self.tick_to_reward -= 1
         if self.tick_to_reward <= 0:
             self.running = False
 
     def output(self, action):
-        # Utilisation de self.w au lieu de window.get_width() pour la sécurité
+        # --- GESTION DU COOLDOWN ---
+        if self.cooldown > 0:
+            self.cooldown -= 1 # On décrémente le timer à chaque frame
+
         if action == 0:
             if self.kranidos.x > 10:
                 self.kranidos.x -= 10
@@ -95,41 +119,39 @@ class Game:
             if self.kranidos.x < self.w - 10 - self.kranidos.size:
                 self.kranidos.x += 10
         elif action == 2:
-            self.plateau.tordre(self.kranidos.x)
+            # On ne peut tirer que si le cooldown est à 0
+            if self.cooldown == 0:
+                self.plateau.tordre(self.kranidos.x)
+                self.cooldown = 30 # BLOQUE L'ACTION PENDANT 30 FRAMES (0.5s)
         elif action == 3:
-            pass # L'IA décide de ne rien faire
+            pass 
 
     def has_fitness(self):
-        # --- MODIFICATION 3 : PAS DE PRINTS ! ---
-        # Les prints ralentissent l'entraînement x100
-        
         if self.cible.is_in(self.boule.x, self.boule.y):
-            self.cible.generate_coordinates()
-            self.fitness += 5.0 # RECOMPENSE MAJEURE
+            # --- MODIFICATION : On utilise notre générateur stratégique ---
+            self.spawn_cible_strategic() 
             
-            # Bonus si fait avec style (bosse)
+            self.fitness += 5.0 
+            
             if self.plateau.has_peak:
                 self.fitness += 2.0
             
-            # On prolonge un peu sa vie pour qu'il puisse marquer encore
             self.tick_to_reward += 200 
             
         elif self.cible.is_close(self.boule.x, self.boule.y):
-            self.fitness += 0.1 # Petite récompense pour l'encourager
+            self.fitness += 0.1 
             
-            # Pénalité légère s'il spamme la bosse pour rien
-            # (Optionnel, à voir si l'IA triche)
-
+        elif self.boule.y < 175:
+            self.fitness += 0.1
+        
     def info_matrix(self):
         x_kranidos = self.kranidos.x
         x_boule, y_boule = self.boule.x, self.boule.y
         x_cible, y_cible = self.cible.x, self.cible.y
         vitesse_boule = self.boule.boule[0].velocity
         
-        # Dimensions stockées
         W, H = float(self.w), float(self.h)
 
-        # Inputs relatifs (Meilleure apprentissage)
         delta_action_x = (x_kranidos - x_boule) / W
         delta_target_x = (x_cible - x_boule) / W
         delta_target_y = (y_cible - y_boule) / H
