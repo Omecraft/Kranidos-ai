@@ -1,13 +1,14 @@
 [NEAT]
-fitness_criterion     = max
+fitness_criterion     = mean
 fitness_threshold     = 100
-pop_size              = 75
+# MODIFIÉ : Plus de population pour augmenter la diversité génétique
+pop_size              = 150
 reset_on_extinction   = False
 no_fitness_termination = False
 
 [DefaultGenome]
 # Informations sur le réseau
-num_inputs            = 9
+num_inputs            = 6
 num_hidden            = 0
 num_outputs           = 3
 enabled_rate_to_true_add = 0.0
@@ -15,13 +16,16 @@ enabled_rate_to_false_add = 0.0
 
 # Structure et mutations structurelles
 initial_connection    = full_direct
-feed_forward          = True
+# MODIFIÉ : False permet les réseaux récurrents (mémoire). Indispensable pour les séquences temporelles.
+feed_forward          = False
 compatibility_disjoint_coefficient = 1.0
 compatibility_weight_coefficient   = 0.5
-conn_add_prob           = 0.3
-conn_delete_prob        = 0.05
-node_add_prob           = 0.2
-node_delete_prob        = 0.2
+# MODIFIÉ : Augmentation de la probabilité de créer des connexions pour trouver des chemins complexes
+conn_add_prob            = 0.5
+conn_delete_prob         = 0.05
+# MODIFIÉ : Augmentation de la probabilité de complexifier le cerveau (nouveaux nœuds)
+node_add_prob            = 0.3
+node_delete_prob         = 0.2
 single_structural_mutation = False
 structural_mutation_surer  = default
 
@@ -35,7 +39,7 @@ aggregation_default     = sum
 aggregation_mutate_rate = 0.0
 aggregation_options     = sum
 
-# Bias (Biais) - Paramètres étendus
+# Bias (Biais)
 bias_init_mean          = 0.0
 bias_init_stdev         = 1.0
 bias_init_type          = gaussian
@@ -45,7 +49,7 @@ bias_mutate_power       = 0.5
 bias_mutate_rate        = 0.7
 bias_replace_rate       = 0.1
 
-# Response (Réponse) - Paramètres étendus
+# Response (Réponse)
 response_init_mean      = 1.0
 response_init_stdev     = 0.0
 response_init_type      = gaussian
@@ -55,15 +59,18 @@ response_mutate_power   = 0.0
 response_mutate_rate    = 0.0
 response_replace_rate   = 0.0
 
-# Weights (Poids) - Paramètres étendus
+# Weights (Poids)
 weight_init_mean        = 0.0
 weight_init_stdev       = 1.0
 weight_init_type        = gaussian
 weight_max_value        = 30
 weight_min_value        = -30
-weight_mutate_power     = 0.5
+# MODIFIÉ : Changements plus radicaux pour sortir des minimums locaux
+weight_mutate_power     = 1.2
+# MODIFIÉ : Taux de mutation très élevé pour forcer l'exploration
 weight_mutate_rate      = 0.8
-weight_replace_rate     = 0.1
+# MODIFIÉ : On remplace totalement les poids plus souvent pour casser les mauvaises habitudes
+weight_replace_rate     = 0.2
 
 # Autres
 enabled_default         = True
@@ -74,10 +81,12 @@ compatibility_threshold = 3.0
 
 [DefaultStagnation]
 species_fitness_func = max
-max_stagnation       = 20
+# MODIFIÉ : On laisse plus de temps (40 gen) avant de déclarer une espèce "morte"
+max_stagnation       = 40
 species_elitism      = 2
 
 [DefaultReproduction]
 elitism            = 2
-survival_threshold = 0.2
+# MODIFIÉ : On garde 30% des survivants pour maintenir plus de diversité génétique
+survival_threshold = 0.3
 min_species_size   = 2
