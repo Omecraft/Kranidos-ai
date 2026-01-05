@@ -34,6 +34,10 @@ class Game:
         self.create_walls(espace)
         self.cible = Cible(self.window, self.plateau)
         
+        # --- PHYSIQUE : DAMPING (Friction de l'air) ---
+        # Permet à la balle de s'arrêter au lieu de rouler à l'infini.
+        espace.damping = 0.5
+        
         # --- INITIALISATION INTELLIGENTE DE LA CIBLE ---
         # On ne laisse pas le hasard faire n'importe quoi au début
         self.spawn_cible_strategic()
@@ -120,9 +124,24 @@ class Game:
                 self.kranidos.x += 10
         elif action == 2:
             # On ne peut tirer que si le cooldown est à 0
+            # On ne peut tirer que si le cooldown est à 0
             if self.cooldown == 0:
                 self.plateau.tordre(self.kranidos.x)
                 self.cooldown = 30 # BLOQUE L'ACTION PENDANT 30 FRAMES (0.5s)
+                
+                # --- MODIFICATION : PENALITÉ D'INSTABILITÉ ---
+                # Plus la balle bouge vite, plus ça coûte cher de taper.
+                # Cela encourage l'IA à attendre que la balle se stabilise.
+                v = self.boule.boule[0].velocity
+                speed = v.length
+                
+                # Formule : Coût de base (1.0) + Penalité de vitesse
+                # Si vitesse = 0 -> Coût = 1.0
+                # Si vitesse = 200 (roule) -> Coût = 1.0 + 1.0 = 2.0
+                # Si vitesse = 800 (vole) -> Coût = 1.0 + 4.0 = 5.0
+                instability_cost = 1.0 + (speed * 0.005)
+                
+                self.fitness -= instability_cost
         elif action == 3:
             pass 
 

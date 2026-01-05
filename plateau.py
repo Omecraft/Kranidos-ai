@@ -22,8 +22,8 @@ class Plateau:
     def create_plateau(self):
         body = pymunk.Body(body_type=pymunk.Body.STATIC)
         shape = pymunk.Segment(body, self.bord_g, self.bord_d, 5)
-        shape.elasticity = 0.8
-        shape.friction = 0.8
+        shape.elasticity = 1
+        shape.friction = 1
         shape.color = (255,255,255)
         self.espace.add(body, shape)
         self.plateau=[body,shape]
